@@ -1,6 +1,6 @@
 Version   = str('PyUL') # Handle used in console.
-D_version = str('January 21 2024, Dynamic Special') # Detailed Version
-S_version = 30.35 # Short Version
+D_version = str('August 25 2024, Dynamic Special Final') # Detailed Version
+S_version = 30.36 # Short Version
 
 # Housekeeping
 import time
@@ -516,6 +516,15 @@ def convert(value, unit, type):
         else:
             raise NameError('Unsupported ACCELERATION unit used')
 
+    
+    elif (type == 'p'):
+        if (unit == ''):
+            converted = value
+        elif (unit == 'kgm/s') or (unit == "Nr") or (unit == 'SI'):
+            converted = value / mass_unit / length_unit * time_unit 
+        else:
+            raise NameError('Unsupported MOMENTUM unit used')
+
     else:
         raise TypeError('Unsupported conversion type')
 
@@ -608,7 +617,16 @@ def convert_back(value, unit, type):
         elif (unit == 'm/s2') or (unit == 'SI') :
             converted = value * length_unit / time_unit**2   
         else:
-            raise NameError('Unsupported ACCELERATION unit used')        
+            raise NameError('Unsupported ACCELERATION unit used')     
+
+    
+    elif (type == 'p'):
+        if (unit == ''):
+            converted = value
+        elif (unit == 'kgm/s') or (unit == "Nr") or (unit == 'SI'):
+            converted = value * mass_unit * length_unit / time_unit 
+        else:
+            raise NameError('Unsupported MOMENTUM unit used')
             
     else:
         raise TypeError('Unsupported conversion type')
