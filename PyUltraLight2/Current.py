@@ -1,6 +1,6 @@
 Version   = str('PyUL') # Handle used in console.
-D_version = str('August 25 2024, Dynamic Special Final') # Detailed Version
-S_version = 30.36 # Short Version
+D_version = str('November 13 2024, Dynamic Special 2') # Detailed Version
+S_version = 30.37 # Short Version
 
 # Housekeeping
 import time
@@ -251,7 +251,7 @@ def prog_bar_NG(iteration_number = 100, progress = 1, tinterval = 0 ,status = ''
 ####################### Credits Information
 def PyULCredits(IsoP = False,UseDispSponge = False,embeds = []):
     print(f"==============================================================================")
-    print(f"{Version}.{S_version}: (c) 2020 - 2024 Yourong F. Wang and collaborators. \nAuckland Cosmology Group\n") 
+    print(f"{Version}.{S_version}: (c) 2020 - 2024 Yourong F. Wang and collaborators. \nAuckland Cosmology\n") 
     print("Original PyUltraLight Team:\nEdwards, F., Kendall, E., Hotchkiss, S. & Easther, R.\n\
 arxiv.org/abs/1807.04037")
     
@@ -634,7 +634,6 @@ def convert_back(value, unit, type):
     return converted
 
 
-
 def convert_between(value, oldunit,newunit, type):
     
     return convert_back(convert(value,oldunit,type),newunit,type)
@@ -704,7 +703,7 @@ def initsoliton(funct, xarray, yarray, zarray, position, alpha, f, delta_x,Cutof
 
 ############################FUNCTION TO PUT SPHERICAL SOLITON DENSITY PROFILE INTO 3D BOX (Uses pre-computed array)
 
-def initsolitonRadial(line, alpha, f, delta_x,Cutoff = 9):
+def initsolitonRadial(line, alpha, f, delta_x,Cutoff = 9, IndexCorrect = False):
     funct = 0*line
     
     for index in np.ndindex(funct.shape):
@@ -715,8 +714,11 @@ def initsolitonRadial(line, alpha, f, delta_x,Cutoff = 9):
             (line[index[0]]) ** 2) ** 0.5
         # Utilises soliton profile array out to dimensionless radius 5.6.
         if (np.sqrt(alpha) * distfromcentre <= Cutoff):
-         
-            funct[index] = alpha * f[int(np.sqrt(alpha) * (distfromcentre / delta_x + 1))]
+            if IndexCorrect:
+                funct[index] = alpha * f[int(np.sqrt(alpha) * (distfromcentre / delta_x))]
+            else:
+                funct[index] = alpha * f[int(np.sqrt(alpha) * (distfromcentre / delta_x + 1))]
+            
 
     return funct
 
@@ -4560,7 +4562,7 @@ def GetRel(array):
     return array - array[0]
 
 
-def DefaultSolitonOrbit(resol,length, length_units, s_mass, s_mass_unit, m_radius, m_position_unit, m_velocity_unit = '', Silent = True, Detail = 10000):
+def DefaultSolitonOrbit(resol,length, length_units, s_mass, s_mass_unit, m_radius, m_position_unit, m_velocity_unit = '', Silent = True, Detail = 10000, IndexCorrect = True):
     
     lengthC = convert(length,length_units,'l')
     s_massC = convert(s_mass,s_mass_unit,'m')
@@ -4580,7 +4582,7 @@ def DefaultSolitonOrbit(resol,length, length_units, s_mass, s_mass_unit, m_radiu
 
     alpha = (s_massC / 3.883) ** 2
 
-    funct = np.abs(initsolitonRadial(linearray, alpha, f, delta_x,Cutoff = 5.6))**2
+    funct = np.abs(initsolitonRadial(linearray, alpha, f, delta_x,Cutoff = 5.6, IndexCorrect = IndexCorrect))**2
     
     if not Silent:
         import matplotlib.pyplot as plt

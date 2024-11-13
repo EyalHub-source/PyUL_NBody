@@ -1,6 +1,6 @@
 Version   = str('PyUL') # Handle used in console.
-D_version = str('Build 2023 March 07 Public') # Detailed Version
-S_version = 26.32 # Short Version
+D_version = str('August 25 2024, Dynamic Special Final') # Detailed Version
+S_version = 30.36 # Short Version
 
 # Housekeeping
 import time
@@ -30,6 +30,8 @@ num_threads = multiprocessing.cpu_count()
 pi = np.pi
 
 eV = 1.78266191e-36 # kg*c^2
+
+c = 299792458 # m/s
 
 # ULDM:
 
@@ -83,10 +85,10 @@ energy_unit = mass_unit * length_unit ** 2 / (time_unit**2)
 #####################################################################################
 ### Internal Flags used for IO
 
-SFS = '3Density 3Wfn 2Density Energy 1Density NBody 3Grav 2Grav DF 2Phase Entropy 1Grav 3GravF 2GravF 1GravF 3UMmt 2UMmt 1UMmt Momentum AngMomentum 3DensityRS 3WfnRS 2EnergyTot 2EnergyKQ 2EnergySI ULDCOM'
+SFS = '3Density 3Wfn 2Density Energy 1Density NBody 3Grav 2Grav DF 2Phase Entropy 1Grav 3GravF 2GravF 1GravF 3UMmt 2UMmt 1UMmt Momentum AngMomentum 3DensityRS 3WfnRS 2EnergyTot 2EnergyKQ 2EnergySI ULDCOM 2DensityRS Quadrupole 2Momentum'
 
-# .    0   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15  16  17  18  19  20  21  22  23  24  25
-SNM = 'R3D P3D R2D EGY R1D NTM G3D G2D DYF A2D ENT G1D F3D F2D F1D V3D V2D V1D PMT MVR R3R P3R E2T E2K E2G UCM'
+# .    0   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15  16  17  18  19  20  21  22  23  24  25  26  27  28  29
+SNM = 'R3D P3D R2D EGY R1D NTM G3D G2D DYF A2D ENT G1D F3D F2D F1D V3D V2D V1D PMT MVR R3R P3R E2T E2K E2G UCM R2R QIJ P2D'
 
 SaveFlags = SFS.split()
 SaveNames = SNM.split()
@@ -107,7 +109,7 @@ def IOSave(loc,Type,save_num,save_format = 'npy',data = [], Old = False):
     elif save_format == 'hdf5':
         
         f = h5py.File(file_name, 'w')
-        dset = f.create_dataset("init", data=data)
+        dset = f.create_dataset(Type, data=data)
         f.close()
     else:
         raise RuntimeError('Invalid output format specified!')
@@ -169,7 +171,7 @@ def GenFromTime():
     return timestamp
 
 ####################### AUX. FUNCTION TO GENERATE PROGRESS BAR
-def prog_bar(iteration_number = 100, progress = 1, tinterval = 0 ,status = '',adtl = ''):
+def prog_bar(iteration_number = 100, progress = 1, tinterval = 0 ,status = '',adtl = '', OutNumber = 0):
     size = 10
     
     if tinterval != 0:
@@ -212,9 +214,15 @@ def prog_bar(iteration_number = 100, progress = 1, tinterval = 0 ,status = '',ad
 
     BarText = BarText[shift:-1] + BarText[0:shift]
     
-    text = "\r[{}] {:.0f}% {}{}{} ({}{:.2f}s) {}".format(BarText
-        , round(PROG * 100, 0),
-        status, 'Exp. Time: ',ETA,'Prev.: ',tinterval,adtl)
+    if OutNumber != 0:
+        SaveText = f"({OutNumber:03d})"
+    else:
+        SaveText = f"{PROG * 100:.0f}%"
+    
+    text = "\r[{}] {} {}{}{} ({}{:.2f}s) {}".format(BarText
+        ,
+        SaveText,
+        status, 'ETA: ',ETA,'Prev.: ',tinterval,adtl)
    
     print(f'{text}', end="",flush='true')
     
@@ -243,7 +251,7 @@ def prog_bar_NG(iteration_number = 100, progress = 1, tinterval = 0 ,status = ''
 ####################### Credits Information
 def PyULCredits(IsoP = False,UseDispSponge = False,embeds = []):
     print(f"==============================================================================")
-    print(f"{Version}.{S_version}: (c) 2020 - 2021 Wang., Y. and collaborators. \nAuckland Cosmology Group\n") 
+    print(f"{Version}.{S_version}: (c) 2020 - 2024 Yourong F. Wang and collaborators. \nAuckland Cosmology Group\n") 
     print("Original PyUltraLight Team:\nEdwards, F., Kendall, E., Hotchkiss, S. & Easther, R.\n\
 arxiv.org/abs/1807.04037")
     
@@ -251,13 +259,13 @@ arxiv.org/abs/1807.04037")
         print(f"\n**External Module In Use**")
     
     if IsoP:
-        printU(f"Isolated ULDM Potential Implementation \nAdapted from J. L. Zagorac et al. Yale Cosmology",'External')
+        printU(f"Isolated ULDM Potential Implementation \nAdapted from J. L. Zagorac et al.",'External')
         
     if UseDispSponge:
-        printU(f"Dispersive Sponge Condition \nAdapted from J. L. Zagorac et al. Yale Cosmology",'External')
+        printU(f"Dispersive Sponge Condition \nAdapted from J. L. Zagorac et al.",'External')
         
     if embeds != []:
-        printU(f"Embedded Soliton Profiles \nAdapted from N. Guo et al. Auckland Cosmology Group",'External')
+        printU(f"Embedded Soliton Profiles \nAdapted from N. Guo et al.",'External')
 
     print(f"==============================================================================")
 
@@ -289,7 +297,7 @@ def ULDStepEst(duration,duration_units,length,length_units,resol,step_factor, sa
     return MinUS
 
 DispN = ULDStepEst
-####################### GREEN FUNCTION DEFINITIONS FROM J. Luna Zagorac (Yale Cosmology)
+####################### GREEN FUNCTION DEFINITIONS
 # With FW Changes to Ensure Compatibility
 
 
@@ -383,6 +391,42 @@ def isolatedPotential(rho, green, l, fft_X, ifft_X, fft_plane, ifft_plane):
     return(rho.real)
 
 
+#FW Attempts to Speed This Up
+
+
+def planeConvolveSP(green, plane, n, fft_plane, ifft_plane):
+    
+    # Convolve Green's function for each plane
+    
+    bigplane = fft_plane(np.pad(plane, ((0,n), (0,n)), 'constant', constant_values=0))
+    
+    # print(np.shape(green), "SHAPE OF GREEN")
+    
+    green1 = makeEvenArray(green) # defined above
+    
+    temp = -1*green1*bigplane
+
+    return ifft_plane(temp)[:-n, :-n]
+
+
+def isolatedPotentialSP(rho, green, l, fft_X, ifft_X, fft_plane, ifft_plane, resol, ndx):
+    # the main function
+    # pads x-direction
+    # then takes each plane, pads it, and convolves it with the appropriate Green's function plane
+    n = resol
+    rhopad = np.pad(rho, ((0,n), (0,0), (0,0)), 'constant', constant_values=0)
+    #rhopad = scipy.fftpack.fftn(rhopad, axes = (0,)) #transform x-axis
+    rhopad = fft_X(rhopad)
+    
+    # loop
+    for i in range(0,2*n):
+        plane = rhopad[i, :, :]
+        rhopad[i, :, :] = PC_jit(green[ndx[i], :, :], plane, n, fft_plane, ifft_plane)
+    # - - - - - - - - - - - - - - - - - - - - - -    
+    #rhopad = (1/n**2) * scipy.fftpack.ifftn(rhopad, axes = (0,)) #inverse transform x-axis
+    rhopad = (1/n**2) * ifft_X(rhopad) # normalization
+    rho = (l**2) * rhopad[:-n, :, :] #potential has units of length^2 in this system
+    return (rho.real)
 
 ####################### CONVERTING PARAMS TO CODE UNITS
 
@@ -444,7 +488,7 @@ def convert(value, unit, type):
         elif (unit == 'km/h'):
             converted = value * 1e3 / (60 * 60) * time_unit / length_unit
         elif (unit == 'c'):
-            converted = value * time_unit / length_unit * 299792458
+            converted = value * time_unit / length_unit * c
         else:
             raise NameError('Unsupported SPEED unit used')
             
@@ -471,6 +515,15 @@ def convert(value, unit, type):
             converted = value / length_unit * time_unit**2   
         else:
             raise NameError('Unsupported ACCELERATION unit used')
+
+    
+    elif (type == 'p'):
+        if (unit == ''):
+            converted = value
+        elif (unit == 'kgm/s') or (unit == "Nr") or (unit == 'SI'):
+            converted = value / mass_unit / length_unit * time_unit 
+        else:
+            raise NameError('Unsupported MOMENTUM unit used')
 
     else:
         raise TypeError('Unsupported conversion type')
@@ -539,7 +592,7 @@ def convert_back(value, unit, type):
         elif (unit == 'km/h'):
             converted = value / (1e3) * (60 * 60) / time_unit * length_unit
         elif (unit == 'c'):
-            converted = value * time_unit / length_unit / 299792458
+            converted = value * time_unit / length_unit / c
         else:
             raise NameError('Unsupported SPEED unit used')
             
@@ -564,7 +617,16 @@ def convert_back(value, unit, type):
         elif (unit == 'm/s2') or (unit == 'SI') :
             converted = value * length_unit / time_unit**2   
         else:
-            raise NameError('Unsupported ACCELERATION unit used')        
+            raise NameError('Unsupported ACCELERATION unit used')     
+
+    
+    elif (type == 'p'):
+        if (unit == ''):
+            converted = value
+        elif (unit == 'kgm/s') or (unit == "Nr") or (unit == 'SI'):
+            converted = value * mass_unit * length_unit / time_unit 
+        else:
+            raise NameError('Unsupported MOMENTUM unit used')
             
     else:
         raise TypeError('Unsupported conversion type')
@@ -687,7 +749,8 @@ def save_grid(
 
         if (save_options[4]): # 1Density Now Saving to Simulated y (Paper x axis)!
             
-            line = rho[resol // 2, :, resol // 2]  
+            line = rho[resol // 2, :, resol // 2]
+
             IOSave(loc,'1Density',save_num,save_format,line)
             
         if (save_options[5]): # TM
@@ -1132,9 +1195,9 @@ def NBodyAdvance(TMState,h,masslist,phiSP,a,lengthC,resol,NS,loc = '',Stream = F
             H = h/NRK
             
             for RKI in range(NRK):
-                TMK1, Trash = FWNBody3(0,TMState,masslist,phiSP,a,lengthC,resol)
-                TMK2, Trash = FWNBody3(0,TMState + H/2*TMK1,masslist,phiSP,a,lengthC,resol)
-                TMK3, Trash = FWNBody3(0,TMState + H/2*TMK2,masslist,phiSP,a,lengthC,resol)
+                TMK1, _ = FWNBody3(0,TMState,masslist,phiSP,a,lengthC,resol)
+                TMK2, _ = FWNBody3(0,TMState + H/2*TMK1,masslist,phiSP,a,lengthC,resol)
+                TMK3, _ = FWNBody3(0,TMState + H/2*TMK2,masslist,phiSP,a,lengthC,resol)
                 TMK4, GradientLog = FWNBody3(0,TMState + H*TMK3,masslist,phiSP,a,lengthC,resol)
                 TMState = TMState + H/6*(TMK1+2*TMK2+2*TMK3+TMK4)
                 
@@ -1177,9 +1240,9 @@ def NBodyAdvance_NI(TMState,h,masslist,phiSP,a,lengthC,resol,NS):
             H = h/NRK
             
             for RKI in range(NRK):
-                TMK1, Trash = FWNBody3_NI(0,TMState,masslist,phiSP,a,lengthC,resol)
-                TMK2, Trash = FWNBody3_NI(0,TMState + H/2*TMK1,masslist,phiSP,a,lengthC,resol)
-                TMK3, Trash = FWNBody3_NI(0,TMState + H/2*TMK2,masslist,phiSP,a,lengthC,resol)
+                TMK1, _ = FWNBody3_NI(0,TMState,masslist,phiSP,a,lengthC,resol)
+                TMK2, _ = FWNBody3_NI(0,TMState + H/2*TMK1,masslist,phiSP,a,lengthC,resol)
+                TMK3, _ = FWNBody3_NI(0,TMState + H/2*TMK2,masslist,phiSP,a,lengthC,resol)
                 TMK4, GradientLog = FWNBody3_NI(0,TMState + H*TMK3,masslist,phiSP,a,lengthC,resol)
                 TMState = TMState + H/6*(TMK1+2*TMK2+2*TMK3+TMK4)
             
@@ -1223,6 +1286,33 @@ def LpEval(psi,rho,funct,resol,Uarray,Kx,Ky,Kz,ifft_funct):
 
     return pOut, LOut 
 
+def pEval(psi,rho,funct,resol,Uarray,Kx,Ky,Kz,ifft_funct):
+    
+    funct *= 1j
+    
+    A = np.absolute(psi)
+
+    spacing = Uarray[1]-Uarray[0]
+    
+    DAx, DAy, DAz = np.gradient(A, spacing)
+
+    DAx = ne.evaluate('A*DAx')
+    KGx = ne.evaluate('Kx*funct')
+    DPx = ifft_funct(KGx)
+    DAx = ne.evaluate('imag(DAx - conj(psi)*DPx)')*spacing**3
+    
+    DAy = ne.evaluate('A*DAy')
+    KGy = ne.evaluate('Ky*funct')
+    DPy = ifft_funct(KGy)
+    DAy = ne.evaluate('imag(DAy - conj(psi)*DPy)')*spacing**3    
+
+    DAz = ne.evaluate('A*DAz')
+    KGz = ne.evaluate('Kz*funct')
+    DPz = ifft_funct(KGz)
+    DAz = ne.evaluate('imag(DAz - conj(psi)*DPz)')*spacing**3
+    
+    return DAx, DAy, DAz
+
 def LUQuick(Uarray,DelTx,DelTy,DelTz):
     
     L = np.zeros(3)
@@ -1252,8 +1342,7 @@ def WrapToCircle(Array):
     return Array
 
 
-
-def LpEvalFast(psi,rho, funct,resol,Uarray,Kx,Ky,Kz,ifft_funct):
+def LpEvalFast(psi,rho, funct,resol,Uarray,Kx,Ky,Kz,ifft_funct): # THIS DOES NOT WORK, FOR OBVIOUS REASONS.
  
     Theta = np.angle(psi)
     spacing = Uarray[1]-Uarray[0]
@@ -1544,13 +1633,13 @@ def SolitonProfile(BHMass,s,Smoo,Production):
     #Note that the spatial resolution of the profile must match the specification of delta_x in the main code.
     if Production:
         dr = .00001
-        max_radius = 9
+        max_radius = 15
         tolerance = 1e-9 # how close f(r) must be to 0 at r_max; can be changed
         
     else:
         dr = .001
-        max_radius = 9 
-        tolerance = 1e-7 # how close f(r) must be to 0 at r_max; can be changed
+        max_radius = 12 
+        tolerance = 1e-6 # how close f(r) must be to 0 at r_max; can be changed
         
     print(f"Central Potential Mass = {BHMass:.5f} @(a = {Smoo}) and Resolution {dr}")
         
@@ -1845,45 +1934,98 @@ def LoadSoliton(Ratio):
 
 initsoliton_jit = numba.jit(initsoliton)
 
-IP_jit = numba.jit(isolatedPotential)
+IP_jit = numba.jit(isolatedPotentialSP)
 
-PC_jit = numba.jit(planeConvolve)
+PC_jit = numba.jit(planeConvolveSP)
  
-Lp_jit = LpEvalFast
+Lp_jit = LpEval
     
 ######################### New Version With Built-in I/O Management
 ######################### Central Function
-######################### Hello There!
-######################### With Code Adapted from Yale Cosmology. Full information please see LICENSE.
 
 
 # New IO Functions
 
 def ULDump(loc,psi,TMState,Status):
-
-    np.save(f'./{loc}/{Status}_psi.npy',psi)
-    np.save(f'./{loc}/{Status}_TM.npy',TMState)
+    np.save(f'{loc}/{Status}_psi.npy',psi)
+    np.save(f'{loc}/{Status}_TM.npy',TMState)
     return 1
     
 def ULRead(InitPath):
-    
     psi = np.load(f'{InitPath}_psi.npy')
-    
     return psi
 
-def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal = False, UseInit = False, IsoP = False, UseDispSponge = False, SelfGravity = True, NBodyInterp = True, NBodyGravity = True, Shift = False, Simpson = False, Silent = False, AutoStop = False, AutoStop2 = False,AutoStop3 = False, KEThreshold = 0.9, WellThreshold = 100, InitPath = '', InitWeight = 1, Message = '', Stream = False, StreamChar = [0], GenerateLog = True, CenterCalc = False, NLM = False, Length_Ratio = 0.5, resolR = 64, PrintEK = True, DR = 1):
+def QuadrupoleFirst(mass_grid, x,y,z,gridvec, r_sq):
+    
+    # dx = gridvec[1] - gridvec[0]
+    nx = len(gridvec)
+
+    # Compute the coordinates using broadcasting
+
+    # Compute r^2 and x_i * x_j terms
+    # r_sq = ne.evaluate("x**2 + y**2 + z**2") # This thing is static?!
+    
+    x_i_x_j = np.array([[x**2, x*y, x*z], [y*x, y**2, y*z], [z*x, z*y, z**2]],dtype=object)
+
+    # Compute the quadrupole moment tensor elements
+    quadrupole_moment = np.zeros((3, 3))
+    
+    for ii in range(3):
+        for ij in range(ii+1):
+            quadrupole_moment[ii, ij] = np.sum(mass_grid * (3 * x_i_x_j[ii, ij] - (ii == ij) * r_sq)) #* dx ** 3
+
+    return quadrupole_moment
+
+
+def QuadrupoleSecond(mass_grid, gridvec, COMLoc=[0, 0, 0]):
+    nx = len(gridvec)
+
+    # Compute the coordinates using broadcasting
+    xG = gridvec - COMLoc[0]
+    yG = gridvec - COMLoc[1]
+    zG = gridvec - COMLoc[2]
+
+    xA, yA, zA = np.meshgrid(xG, yG, zG, indexing='ij', sparse=True)
+
+    r_sq = ne.evaluate("xA**2 + yA**2 + zA**2")
+
+    x_i_x_j = np.array(
+        [[xA**2, xA * yA, xA * zA], [yA * xA, yA**2, yA * zA], [zA * xA, zA * yA, zA**2]],
+        dtype=object)
+
+    # Compute the quadrupole moment tensor elements
+    quadrupole_moment = np.zeros((3, 4))  # Dipole is attached as a column vector [:,3]
+
+    for ii in range(3):
+        for ij in range(ii + 1):
+            quadrupole_moment[ii, ij] = np.sum(mass_grid *
+                                               (3 * x_i_x_j[ii, ij] -
+                                                (ii == ij) * r_sq))  #* dx ** 3
+
+    # Compute the dipole moment vector elements
+    quadrupole_moment[0, 3] = np.sum(mass_grid * xA)
+    quadrupole_moment[1, 3] = np.sum(mass_grid * yA)
+    quadrupole_moment[2, 3] = np.sum(mass_grid * zA)
+
+    return quadrupole_moment
+
+
+def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal = False, UseInit = False, IsoP = False, UseDispSponge = False, SelfGravity = True, NBodyInterp = True, NBodyGravity = True, Shift = False, Simpson = False, Silent = False, AutoStop = False, AutoStop2 = False,AutoStop3 = False, KEThreshold = 0.9, WellThreshold = 100, InitPath = '', InitWeight = 1, Message = '', Stream = False, StreamChar = [0], GenerateLog = True, CenterCalc = False, NLM = False, Length_Ratio = 0.5, resolR = 64, PrintEK = True, DR = 1, MassChange = False, MassFunc = "", CorrectDrift = False, CorrectFreq = 6, ComputeQuad = False, ExtPhi = 0):
     
     if run_folder == "":
         printU('Nothing done!','Evolve')
         return
-    
-    # clear_output()
+
+    if CorrectDrift:
+        CenterCalc = True
+        printU(f"Performing kicks to stop ULDM COM drift every {CorrectFreq} steps. This does NOT yet apply to N body.",'SPCD')
+        
 
     Draft = True
 
     Method = 3 # Backward Compatibility
     
-    loc = './' + save_path + '/' + run_folder
+    loc = save_path + '/' + run_folder
         
     if UseInit and (InitPath == ''):
         raise RuntimeError("UseInit set to true. Must supply initial wavefunction!")
@@ -1917,7 +2059,7 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
                    
     timestamp = run_folder
 
-    file = open('{}{}{}'.format('./', save_path, '/latest.uldm'), "w+")
+    file = open('{}{}'.format(save_path, '/latest.uldm'), "w+")
     file.write(run_folder)
     file.close()
     
@@ -1959,22 +2101,26 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
     "Depth Factor" : WellThreshold,
     })
     
-    LogLocation = f"./{save_path}/{run_folder}/evolve_{GenFromTime()}.log"
+    LogLocation = f"{save_path}/{run_folder}/evolve_{GenFromTime()}.log"
     
-    PyULConfig["Misc. Settings"] = ({"Custom Soliton Draft Quallity": Draft})
+    PyULConfig["Misc. Settings"] = ({"Custom Soliton Draft Quallity": Draft,
+                                    "Calculate Centre of Mass": CenterCalc,
+                                    "Soliton Init Stretch Factor":DR,
+                                    "Correct COM Drift": CorrectDrift})
     
-    with open(f'./{save_path}/{run_folder}/reproducibility.uldm', "w+") as outfile:
+    
+    
+    with open(f'{save_path}/{run_folder}/reproducibility.uldm', "w+") as outfile:
         json.dump(PyULConfig, outfile,indent=4)
 
-    
     NS, length, length_units, resol, duration, duration_units, step_factor, save_number, save_options, save_format, s_mass_unit, s_position_unit, s_velocity_unit, solitons,start_time, m_mass_unit, m_position_unit, m_velocity_unit, particles, embeds, Uniform,Density, density_unit,a, UVel = LoadConfig(loc)
 
     for SaveName in SaveOptionsCompile(save_options).split():
         os.mkdir(str(loc + '/Outputs/'+SaveName))        
     num_threads = multiprocessing.cpu_count()
     
-    if resol <= 100:
-        num_threads = np.min([num_threads//2,8])
+    if resol < 128:
+        num_threads = np.min([num_threads,4])
         
     printU(f"Using {num_threads} CPU Threads for FFT.",'FFT', ToFile= GenerateLog, FilePath= LogLocation)
     # External Credits Print
@@ -2079,10 +2225,7 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
     WN = 2*np.pi*np.fft.fftfreq(resol, lengthC/(resol)) # 2pi Pre-multiplied
     
     Kx,Ky,Kz = np.meshgrid(WN,WN,WN,sparse=True, indexing='ij',)
-    
-       
-    
-    ##########################################################################################
+     ##########################################################################################
     # SET UP K-SPACE COORDINATES FOR COMPLEX DFT
 
     kvec = 2 * np.pi * np.fft.fftfreq(resol, lengthC / float(resol))
@@ -2114,7 +2257,7 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
         DensityCom = MassCom / resol**3
 
         print('========================Dispersive Background====================================')
-        printU(f"Added a pre-generated wavefunction with pseudorandom phase.",'Init', ToFile= GenerateLog, FilePath= LogLocation)
+        printU(f"Loaded a pre-generated wavefunction from {InitPath}_psi.npy.",'Init', ToFile= GenerateLog, FilePath= LogLocation)
         
     # INITIALISE SOLITONS WITH SPECIFIED MASS, POSITION, VELOCITY, PHASE
 
@@ -2162,10 +2305,10 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
         except RuntimeError:
             print('==============================================================================')
             printU(f'Note that this process will not be required for repeated runs. To remove custom profiles, go to the folder /Soliton Profile Files/Custom.', 'Profiler', ToFile= GenerateLog, FilePath= LogLocation)
-            print(f'Generating profile for Soliton with MBH/MSoliton = {RatioBU:.4f}, Part 1', ToFile= GenerateLog, FilePath= LogLocation)
+            printU(f'Generating profile for Soliton with MBH/MSoliton = {RatioBU:.4f}, Part 1', ToFile= GenerateLog, FilePath= LogLocation)
             GMin,GMax = BHGuess(RatioBU)
             s, BHMass = BHRatioTester(RatioBU,30,1e-6,GMin,GMax,a)
-            print(f'Generating profile for Soliton with MBH/MSoliton = {RatioBU:.4f}, Part 2', ToFile= GenerateLog, FilePath= LogLocation)
+            printU(f'Generating profile for Soliton with MBH/MSoliton = {RatioBU:.4f}, Part 2', ToFile= GenerateLog, FilePath= LogLocation)
             SolitonProfile(BHMass,s,a,not Draft)
         print('==============================================================================')
 
@@ -2253,7 +2396,11 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
         
         if CenterCalc:
             printU(LocCOM, "COM", ToScreen = False, ToFile= GenerateLog, FilePath= LogLocation) 
-            Resample3Box(psi, LocCOM, gridvec, loc, 0, save_format, Length_Ratio, resolR, Save_Rho = save_options[20], Save_Psi = save_options[21])
+            Resample3Box(psi, LocCOM, gridvec, loc, 0, save_format, Length_Ratio, resolR, Save_Rho = save_options[20], Save_Psi = save_options[21], Save_Rho2 = save_options[26])
+            
+        if CorrectDrift:
+            
+            COM0 = LocCOM
 
 
     ##########################################################################################
@@ -2284,8 +2431,18 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
     ##########################################################################################
     # First ULDM Momentum and Angular Momentum Saves 
     
-    if save_options[18] or save_options[19]:
+    if save_options[28]: #pEval
         
+        pXAr, pYAr, pZAr = pEval(psi,rho,funct,resol,gridvec,Kx,Ky,Kz,ifft_funct)
+        momentum_I = 0
+        printU('Saving ULDM momentum array.','2Momentum', ToFile= GenerateLog, FilePath= LogLocation)
+        IOSave(loc,'2Momentum',momentum_I,save_format,data = np.array([pXAr[:,:,resol//2], 
+                                                                       pYAr[:,:,resol//2], 
+                                                                       pZAr[:,:,resol//2]]))
+        
+    
+    if save_options[18] or save_options[19]:
+
         momentum_I = 0
     
         pOut,LOut = Lp_jit(psi,rho,funct,resol,gridvec,Kx,Ky,Kz,ifft_funct)
@@ -2315,6 +2472,8 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
 
     phiSP = pyfftw.zeros_aligned((resol, resol, resol), dtype='float64')
     phiTM = pyfftw.zeros_aligned((resol, resol, resol), dtype='float64') # New, separate treatment.
+    
+    # print(phiSP.shape) OK THIS FAR
 
     fft_phi = pyfftw.builders.fftn(phiSP, axes=(0, 1, 2), threads=num_threads)
     ##########################################################################################
@@ -2343,7 +2502,7 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
     
     if EdgeClear:
         
-        Cutoff = (resol//8)
+        Cutoff = (resol//16)
         
         #x
         psi[ 0:Cutoff,:,:] = np.sqrt(Density) + 0j
@@ -2356,12 +2515,15 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
         #z
         psi[:,:, 0:Cutoff] = np.sqrt(Density) + 0j
         psi[:,:,-Cutoff:] = np.sqrt(Density) + 0j
-        
+             
 
     ##########################################################################################
     # COMPUTE INTIAL VALUE OF POTENTIAL
 
     if IsoP:
+        
+        ndx = resol - np.abs(np.arange(-resol, resol))
+                             
         try:
             green = np.load(f'./Green Functions/G{resol}.npy')
             printU(f"Using pre-computed Green function for simulation region.",'SP', ToFile= GenerateLog, FilePath= LogLocation)
@@ -2373,19 +2535,25 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
             np.save(f'./Green Functions/G{resol}.npy',green)
             
         #green = makeEvenArray(green)
-        phiSP = IP_jit(rho, green, lengthC, fft_X, ifft_X, fft_plane, ifft_plane)
+        phiSP = IP_jit(rho, green, lengthC, fft_X, ifft_X, fft_plane, ifft_plane, resol, ndx)
         
     else:
-        printU(f"Poisson Equation Solveed Using FFT.",'SP', ToFile= GenerateLog, FilePath= LogLocation)
+        printU(f"Poisson Equation Solved Using FFT.",'SP', ToFile= GenerateLog, FilePath= LogLocation)
         phiSP = irfft_phi(phik)
         
     ##########################################################################################
        
+    phiSP += ExtPhi
     # NBody
     EGPCM = 0
     for MI, particle in enumerate(particles):
                
-        mT = convert(particle[0], m_mass_unit, 'm')
+        if MassChange:
+            mT = particle[0] * MassFunc(0)
+        else:
+            mT = convert(particle[0], m_mass_unit, 'm')
+
+
         masslist.append(mT)
 
         position = convert(np.array(particle[1]), m_position_unit, 'l')
@@ -2419,8 +2587,6 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
         if mT != 0:
                        
             distarrayTM = ne.evaluate("((xarray-TMx)**2+(yarray-TMy)**2+(zarray-TMz)**2)**0.5") # Radial coordinates
-
-
             if a == 0:
                 phiTM = ne.evaluate("phiTM-mT/(distarrayTM)")
             else:
@@ -2499,7 +2665,6 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
         np.save(os.path.join(os.path.expanduser(loc), "Outputs/Entro.npy"), EntropyLog)
 
     #######################################
-    
     if np.isnan(rho).any() or np.isnan(psi).any():
         raise RuntimeError("Something is seriously wrong.")
     
@@ -2507,6 +2672,8 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
         printU(f'Successfully initiated Wavefunction and NBody Initial Conditions. Dumping to file.','IO', ToFile= GenerateLog, FilePath= LogLocation)
     
         ULDump(loc,psi,TMState,'Init')
+        
+        return
         
     
     else:
@@ -2522,17 +2689,23 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
         loc, -1, 1
         )
     
+    if ComputeQuad:
+        #r_sq = ne.evaluate("xarray**2+yarray**2+zarray**2")
+        LocCOM = Find3BoxCOM(rho,xarray, yarray, zarray)
+        Qij = QuadrupoleSecond(rho, gridvec, LocCOM)
+        IOSave(loc,'Quadrupole',0,save_format,data = Qij)
+        
     tBegin = time.time()
     
     tBeginDisp = datetime.fromtimestamp(tBegin).strftime("%d/%m/%Y, %H:%M:%S")
     
 
     ########################################################################################## 
-    # From Yale Cosmology.
+    # From Yale.
   
     if UseDispSponge:
         
-        SpongeRatio = 1/2
+        SpongeRatio = 6/8
         # This works in grid units in Chapel. We make it work in Code Units.
         rn = 1/2*lengthC
         rp = SpongeRatio*rn
@@ -2545,7 +2718,8 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
         PreMult = 0.5*V0*(c0+np.tanh((distarray-rs)*invdelta))
         
         #High Performance Mask
-        PreMult[distarray<=rp] = 0
+        # PreMult[distarray<=rp] = 0
+        # Commented in 17 Oct 2023
         
         printU(f'Dispersive Sponge Condition Pre Multiplier Ready.','SP', ToFile= GenerateLog, FilePath= LogLocation)
     ##########################################################################################
@@ -2566,9 +2740,7 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
     else:
         printU(f"Taking {int(actual_num_steps)} ULDM steps @ {save_number} snapshots", 'Runtime', ToFile= GenerateLog, FilePath= LogLocation)
     
-    if warn == 1:
-        print("WARNING: Detected significant overlap between solitons in I.V.")
-    print('\n')
+
     tinit = time.time()
     tint = 0
     
@@ -2586,10 +2758,27 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
         else:
             psi = ne.evaluate("exp(-1j*h*phi)*psi")
         
+        
         funct = fft_psi(psi)
+            
 
         ###### New Momentum Evaluator
         if (ix+1) % its_per_momentum == 0:
+            
+            if save_options[28]: #pEval
+                
+                momentum_I += 1
+        
+                pXAr, pYAr, pZAr = pEval(psi,rho,funct,resol,gridvec,Kx,Ky,Kz,ifft_funct)
+
+                IOSave(loc,'2Momentum',momentum_I,save_format,data = np.array([pXAr[:,:,resol//2], 
+                                                                               pYAr[:,:,resol//2], 
+                                                                               pZAr[:,:,resol//2]]))
+                
+                save_options[18] = 0
+                save_options[19] = 0
+                
+        
             if save_options[18] or save_options[19]:
                 prog_bar(actual_num_steps, ix + 1, tint,'pL',PBEDisp)
 
@@ -2606,18 +2795,56 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
         funct = ne.evaluate("funct*exp(-1j*0.5*h*karray2)")
         psi = ifft_funct(funct)
 
+        if EdgeClear:
+
+            #x
+            psi[ 0:Cutoff,:,:] = np.sqrt(Density) + 0j
+            psi[-Cutoff:,:,:] = np.sqrt(Density) + 0j
+
+            #y
+            psi[:, 0:Cutoff,:] = np.sqrt(Density) + 0j
+            psi[:,-Cutoff:,:] = np.sqrt(Density) + 0j
+
+            #z
+            psi[:,:, 0:Cutoff] = np.sqrt(Density) + 0j
+            psi[:,:,-Cutoff:] = np.sqrt(Density) + 0j
 
         if UseDispSponge:
             prog_bar(actual_num_steps, ix + 1, tint,'DS',PBEDisp)
             psi *= np.exp(-PreMult*h)
         
+
         rho = ne.evaluate("abs(abs(psi)**2)").real
         
         if CenterCalc:
             LocCOM = Find3BoxCOM(rho,xarray, yarray, zarray)
             printU(LocCOM, "COM", ToScreen = False, ToFile= GenerateLog, FilePath= LogLocation)
+        
+        ###### Kick Back COM Here
+        
+        CorrectFlag = False
+        
+        if CorrectDrift:
+
+            if ix % CorrectFreq == 2:
             
-            
+                COM2 = LocCOM
+                CorrectFlag = True
+
+            if ix % CorrectFreq == 0:
+                COM0 = LocCOM
+
+            if CorrectFlag:
+                
+                prog_bar(actual_num_steps, ix + 1, tint,'CD',PBEDisp)
+                
+                UVelO = (COM0 - COM2) / 2 / h
+
+                velx =  UVelO[0]
+                vely =  UVelO[1]
+                velz =  UVelO[2]
+                psi = ne.evaluate("exp(1j*(velx*xarray + vely*yarray + velz*zarray))*psi")
+
         phik = rfft_rho(rho)  # not actually phik but phik is defined in next line
             
         phik = ne.evaluate("-4*pi*phik/rkarray2")
@@ -2629,9 +2856,11 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
         if not IsoP:
             phiSP = irfft_phi(phik)
         else:
-            phiSP = IP_jit(rho, green, lengthC, fft_X, ifft_X, fft_plane, ifft_plane)
+            phiSP = IP_jit(rho, green, lengthC, fft_X, ifft_X, fft_plane, ifft_plane, resol, ndx)
+            
+        phiSP += ExtPhi # New Handle
 
-        # FW STEP MAGIC HAPPENS HERE
+        # FW N Body Toy
         prog_bar(actual_num_steps, ix + 1, tint,'RK4',PBEDisp)
         
         if NBodyInterp:
@@ -2653,6 +2882,9 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
                 TMx = State[0]
                 TMy = State[1]
                 TMz = State[2]
+
+                if MassChange:
+                    masslist[MI] = particle[0] * MassFunc(TIntegrate)
 
                 mT = masslist[MI]
 
@@ -2685,7 +2917,7 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
             rho = ne.evaluate("abs(abs(psi)**2)")
             HaSt = 1
             rho = rho.real
-            prog_bar(actual_num_steps, ix + 1, tint,'IO',PBEDisp)
+            prog_bar(actual_num_steps, ix + 1, tint,'IO',PBEDisp,OutNumber = 1 + int((ix + 1) / its_per_save))
             #Next block calculates the energies at each save, not at each timestep.
             if (save_options[3]):
     
@@ -2707,8 +2939,13 @@ def evolve(save_path,run_folder, EdgeClear = False, DumpInit = False, DumpFinal 
             egpcmMlist.append(EGPCM)
             EGPCM = 0
             
+            if ComputeQuad: # This Happens At Origin, of Course
+                # LocCOM = Find3BoxCOM(rho,xarray, yarray, zarray)
+                Qij = QuadrupoleSecond(rho, gridvec, LocCOM)
+                IOSave(loc, "Quadrupole", int((ix + 1) / its_per_save),save_format,data = Qij)
+
             if CenterCalc:
-                Resample3Box(psi, LocCOM, gridvec, loc, int((ix + 1) / its_per_save), save_format, Length_Ratio, resolR, Save_Rho = save_options[20], Save_Psi = save_options[21])
+                Resample3Box(psi, LocCOM, gridvec, loc, int((ix + 1) / its_per_save), save_format, Length_Ratio, resolR, Save_Rho = save_options[20], Save_Psi = save_options[21],Save_Rho2 = save_options[26])
             
             save_grid(
                 rho, psi, resol, 
@@ -2906,7 +3143,7 @@ def get_size(start_path):
 def Load_Latest(save_path):
     
     
-    with open('{}{}{}'.format('./',save_path, '/latest.uldm'), 'r') as timestamp:
+    with open('{}{}'.format(save_path, '/latest.uldm'), 'r') as timestamp:
         ts = timestamp.read()
         printU('Loading Folder',ts)
         
@@ -3237,7 +3474,7 @@ def GenerateConfig(NS, length, length_units, resol, duration, duration_units, st
         else:
             timestamp = tm + f'@{resol}'
 
-    Dir = f"./{save_path}/{timestamp}"
+    Dir = f"{save_path}/{timestamp}"
       
         
     try:
@@ -3341,7 +3578,7 @@ def GenerateConfig(NS, length, length_units, resol, duration, duration_units, st
             })
 
 
-    with open('{}{}{}{}{}'.format('./', save_path, '/', timestamp, '/config.uldm'), "w+") as outfile:
+    with open('{}{}{}{}'.format(save_path, '/', timestamp, '/config.uldm'), "w+") as outfile:
         json.dump(Conf_data, outfile,indent=4)
 
         
@@ -3710,6 +3947,57 @@ def SolEst(mass,length,resol,mass_unit = '',length_units = '', Plot = False, Den
 
 SolitonSizeEstimate = SolEst   
 
+def SolitonSizeEstimateR(mass,length,resol,mass_unit = '',length_units = '', Plot = False, Density = 0, density_unit = ''): 
+    # Only deals with default solitons!
+    import matplotlib.pyplot as plt
+    
+    code_mass = convert(mass,mass_unit,'m')
+    code_length = convert(length,length_units,'l')
+    
+    f = LoadDefaultSoliton()
+    alpha = (code_mass / 3.883) ** 2
+    
+    CutOff = 5.6
+    
+    delta_x = 0.00001
+    
+    rarray = np.linspace(0,code_length/2,resol//2)
+
+    funct = 0*rarray
+    for index in range(resol//2):
+
+        if (np.sqrt(alpha) * rarray[index] <= CutOff):
+            funct[index] = alpha * f[int(np.sqrt(alpha) * (rarray[index] / delta_x + 1))]
+        
+        else:
+            funct[index] = np.nan
+            
+    funct = funct**2
+    
+    if Plot:
+        plt.plot(rarray,funct,'--')
+        plt.xlim([0,code_length/2])
+        plt.ylim([0,funct[0]*1.1])
+        plt.xlabel('Code Radial Coordinate')
+        plt.ylabel('Code Density')
+        
+        if Density != 0:
+            DensityC = convert(Density,density_unit,'d')
+            plt.plot(rarray,0*rarray+DensityC,'--')
+    
+    try:
+        RHWHM = np.where(funct <= funct[0]/2)
+    
+        codeHWHM = rarray[RHWHM[0][0]]
+    
+        return codeHWHM, rarray, funct
+    
+    except IndexError:
+        print('Soliton too wide or too narrow!')
+        print(f'Central value: {funct[0]}',f'Minimum value: {np.min(funct)}')
+        return 0, rarray, funct
+
+
 def DefaultDBL(v = 10,vUnit = 'm/s'):
     
     v = convert_between(v,vUnit,'m/s','v')
@@ -3887,7 +4175,7 @@ def ParameterScanGenerator(path_to_config,ScanParams,ValuePool,save_path,
         
         print('Generated config file for', Str)
         
-    file = open('{}{}{}'.format('./', save_path, '/LookUp.uldm'), "w+")
+    file = open('{}{}'.format(save_path, '/LookUp.uldm'), "w+")
     
     file.write(f'PyUL {S_version} Parameter Scan Settings Lookup \n')
     
@@ -3985,6 +4273,197 @@ def VizInit2D(length,length_units,resol,embeds,
     ax.set_yticklabels([])
     
     return fig, ax
+
+
+# More Pragmatic Version, Just initiates the psi, a part of current evolve()
+# solitons, embeds, particles
+
+def Init3D(length,length_units,resol,embeds,
+              solitons,s_position_unit, s_mass_unit,
+              particles,m_position_unit, Uniform, Density, UVel, rP):
+    
+    particles, solitons, embeds = EmbedParticle(particles,embeds,solitons)
+    
+    masslist = []
+    TMState = []
+
+##########################################################################################
+    #CONVERT INITIAL CONDITIONS TO CODE UNITS
+
+    lengthC = convert(length, length_units, 'l')
+
+    Density = convert(Density,density_unit,'d')
+
+    Vcell = (lengthC / float(resol)) ** 3
+
+ ##########################################################################################
+    # SET UP THE REAL SPACE COORDINATES OF THE GRID - FW Revisit
+
+    gridvec = np.linspace(-lengthC / 2.0, lengthC / 2.0, resol, endpoint = False) # careful!
+
+    xarray, yarray, zarray = np.meshgrid(
+        gridvec, gridvec, gridvec,
+        sparse=True, indexing='ij')
+
+    ##########################################################################################
+    delta_x = 0.00001 # Needs to match resolution of soliton profile array file. Default = 0.00001
+
+    warn = 0 
+    funct = pyfftw.zeros_aligned((resol, resol, resol), dtype='complex128')   
+
+    psi = pyfftw.zeros_aligned((resol, resol, resol), dtype='complex128')
+
+    MassCom = Density*lengthC**3
+
+    UVelocity = convert(np.array(UVel),s_velocity_unit, 'v')
+
+    VTot = np.linalg.norm(UVelocity)
+
+    DensityCom = MassCom / resol**3
+
+    psi = ne.evaluate("0*psi + sqrt(Density)")
+
+    velx = UVelocity[0]
+    vely = UVelocity[1]
+    velz = UVelocity[2]
+    psi = ne.evaluate("exp(1j*(velx*xarray + vely*yarray + velz*zarray))*psi")
+
+    for EI,emb in enumerate(embeds):
+        Ratio = emb[3]
+        RatioBU = float(Ratio/(1-Ratio))
+        try:
+            delta_xL, prealphaL, betaL,CutOff = LoadSolitonConfig(RatioBU)
+        except RuntimeError:
+            print('==============================================================================')
+            printU(f'Note that this process will not be required for repeated runs. To remove custom profiles, go to the folder /Soliton Profile Files/Custom.', 'Profiler', ToFile= GenerateLog, FilePath= LogLocation)
+            printU(f'Generating profile for Soliton with MBH/MSoliton = {RatioBU:.4f}, Part 1', ToFile= GenerateLog, FilePath= LogLocation)
+            GMin,GMax = BHGuess(RatioBU)
+            s, BHMass = BHRatioTester(RatioBU,30,1e-6,GMin,GMax,a)
+            printU(f'Generating profile for Soliton with MBH/MSoliton = {RatioBU:.4f}, Part 2', ToFile= GenerateLog, FilePath= LogLocation)
+            SolitonProfile(BHMass,s,a,not Draft)
+        print('==============================================================================')
+
+        delta_xL, prealphaL, betaL,CutOff = LoadSolitonConfig(RatioBU)
+
+        # L stands for Local, as in it's only used once.
+        fL = LoadSoliton(RatioBU)
+
+        printU(f"Loaded embedded soliton {EI} with BH-Soliton mass ratio {RatioBU:.4f}.", 'Init', ToFile= GenerateLog, FilePath= LogLocation)
+
+        mass = convert(emb[0], s_mass_unit, 'm')*(1-Ratio)
+        position = convert(np.array(emb[1]), s_position_unit, 'l')
+        velocity = convert(np.array(emb[2]), s_velocity_unit, 'v')
+
+        # Note that alpha and beta parameters are computed when the initial_f.npy soliton profile file is generated.
+
+        alphaL = (mass / prealphaL) ** 2
+        phase = emb[4]
+        funct = initsoliton_jit(funct, xarray, yarray, zarray, position, alphaL, fL, delta_xL)
+
+        if(np.isnan(funct).any()):
+            print('Something is seriously wrong!')
+            raise RuntimeError('Duh')
+        ####### Impart velocity to solitons in Galilean invariant way
+        velx = velocity[0]
+        vely = velocity[1]
+        velz = velocity[2]
+        funct = ne.evaluate("exp(1j*(alphaL*betaL*t0 + velx*xarray + vely*yarray + velz*zarray -0.5*(velx*velx+vely*vely+velz*velz)*t0  + phase))*funct")
+        psi = ne.evaluate("psi + funct")
+        EI += 1 # For displaying.
+
+    if solitons != []:
+        printU(f"Loaded standard soliton radial profile.",'Init', ToFile= GenerateLog, FilePath= LogLocation)
+        f = LoadDefaultSoliton()
+
+    for s in solitons:
+        mass = convert(s[0], s_mass_unit, 'm')
+        position = convert(np.array(s[1]), s_position_unit, 'l')
+        velocity = convert(np.array(s[2]), s_velocity_unit, 'v')
+        # Note that alpha and beta parameters are computed when the initial_f.npy soliton profile file is generated.
+        alpha = (mass / 3.8827652755822006) ** 2 #3.883
+        #alpha = (mass / 3.883) ** 2 #3.883
+        beta = 2.4538872760773143 #2.454
+        #beta = 2.454 #2.454
+        phase = s[3]
+
+        funct = InitSolitonF(gridvec, position, resol, alpha, DR = DR)
+        # funct = initsoliton_jit(funct, xarray, yarray, zarray, position, alpha, f, delta_x, DR = DR)
+
+        printU(f"Using scale {DR}","Scaler")
+        ####### Impart velocity to solitons in Galilean invariant way
+        velx = velocity[0]
+        vely = velocity[1]
+        velz = velocity[2]
+        funct = ne.evaluate("exp(1j*(alpha*beta*t0 + velx*xarray + vely*yarray + velz*zarray -0.5*(velx*velx+vely*vely+velz*velz)*t0  + phase))*funct")
+        psi = ne.evaluate("psi + funct")
+
+
+    COM = Find3BoxCOM(rho,xarray, yarray, zarray)
+
+    for MI, particle in enumerate(particles):
+
+        if MassChange:
+            mT = particle[0] * MassFunc(0)
+        else:
+            mT = convert(particle[0], m_mass_unit, 'm')
+
+
+        masslist.append(mT)
+
+        position = convert(np.array(particle[1]), m_position_unit, 'l')
+
+        if mT == 0:
+            printU(f"Particle #{MI} loaded as observer.",'NBody', ToFile= GenerateLog, FilePath= LogLocation)
+        else:
+
+            DensityInit = QuickInterpolate(rho,lengthC,resol,position)
+            printU(f"Particle #{MI} mass {mT:.5f} and local density {DensityInit:.5f} (code units).",'NBody', ToFile= GenerateLog, FilePath= LogLocation)
+            NBDensity(loc,DensityInit)
+
+
+        if Shift:
+            position = GridShift(position, lengthC, resol)
+
+        velocity = convert(np.array(particle[2]), m_velocity_unit, 'v')
+
+        IND = int(6*MI)
+
+        TMx = position[0]
+        TMy = position[1]
+        TMz = position[2]
+
+        Vx = velocity[0]
+        Vy = velocity[1]
+        Vz = velocity[2]
+
+        TMState.append([TMx,TMy,TMz,Vx,Vy,Vz])
+
+        if mT != 0:
+
+            distarrayTM = ne.evaluate("((xarray-TMx)**2+(yarray-TMy)**2+(zarray-TMz)**2)**0.5") # Radial coordinates
+            if a == 0:
+                phiTM = ne.evaluate("phiTM-mT/(distarrayTM)")
+            else:
+                phiTM = ne.evaluate("phiTM-a*mT/sqrt(1+a**2*distarrayTM**2)")
+
+
+        if (save_options[3]):
+            EGPCM += mT*QuickInterpolate(phiSP,lengthC,resol,np.array([TMx,TMy,TMz]))
+        MI = int(MI + 1)
+
+        if AutoStop and Uniform and len(particles) == 1:
+            ThresholdVelocity += Vy
+
+        if AutoStop and len(particles) == 1:
+            E0 = 1/2 * mT * np.linalg.norm(velocity + UVelocity)**2  
+            if E0 == 0:
+                E0 = 1
+
+    masslist = np.array(masslist)
+    TMState = np.array(TMState)
+    TMState = TMState.flatten(order='C')
+
+    return TMState, psi, COM
 
 # New addition that fixes mesh compatibility
 def XYSwap(Vec):
@@ -4340,7 +4819,7 @@ def Find3BoxCOM(rho,xGrid, yGrid, zGrid):
     COM = np.array([np.sum(xGrid * rho),np.sum(yGrid * rho),np.sum(zGrid * rho)])/np.sum(rho)
     return COM
     
-def Resample3Box(psi, COM, XAR, loc, save_num, save_format, Length_Ratio = 0.5, resolR = 192, Save_Rho = False, Save_Psi = False, Compatibility = True):
+def Resample3Box(psi, COM, XAR, loc, save_num, save_format, Length_Ratio = 0.5, resolR = 128, Save_Rho = False, Save_Psi = False, Compatibility = False, Save_Rho2 = False):
     
     from scipy.interpolate import RegularGridInterpolator as RPI
     # Note that phase correction is not performed in this version.
@@ -4376,6 +4855,10 @@ def Resample3Box(psi, COM, XAR, loc, save_num, save_format, Length_Ratio = 0.5, 
         
         IOSave(loc,'3DensityRS',save_num,save_format,RhoNew)
 
+    if Save_Rho2:
+        RhoNew = ne.evaluate("conj(PsiNew)*PsiNew").real
+        IOSave(loc,'2DensityRS',save_num,save_format,RhoNew[:,:,resolR//2])
+
 
 def Wfn_to_PyUL1(psi):
 
@@ -4403,3 +4886,64 @@ def Wfn_to_PyUL1(psi):
     IPsi = ne.evaluate("IReal + 1j*IImag")
     
     return np.reshape(IPsi,(resolR,resolR,resolR))
+
+
+def FWNBodySimple(TMState,masslist,a = 0):
+    
+    dTMdt = 0*TMState
+    
+    for i in range(len(masslist)):
+        
+        #0,6,12,18,...
+        Ind = int(6*i)
+           
+        #XDOT = vx
+        dTMdt[Ind]   =  TMState[Ind+3]
+        #YDOT = vy
+        dTMdt[Ind+1] =  TMState[Ind+4]
+        #ZDOT = vz
+        dTMdt[Ind+2] =  TMState[Ind+5]
+        
+        #x,y,z
+
+        # Now, change velocities
+        
+        #Initialized Against ULDM Field
+        #XDDOT
+        dTMdt[Ind+3] =  0
+        #YDDOT
+        dTMdt[Ind+4] =  0
+        #ZDDOT
+        dTMdt[Ind+5] =  0
+ 
+        poslocal = TMState[Ind:Ind+3]
+    
+        for ii in range(len(masslist)):
+            
+            if (ii != i) and (masslist[ii] != 0):
+                
+                IndX = int(6*ii)
+                
+                # print(ii)
+                
+                poslocalX = np.array([TMState[IndX],TMState[IndX+1],TMState[IndX+2]])
+                
+                rV = poslocalX - poslocal
+                
+                rVL = np.linalg.norm(rV) # Positive
+                
+                if a == 0:
+                    F = 1/(rVL)**3
+                else:                    
+                    F = -(a**3)/(a**2*rVL**2+1)**(1.5) # The First Plummer
+                
+                # Differentiated within Note 000.0F
+                
+                #XDDOT with Gravity
+                dTMdt[Ind+3] -= masslist[ii]*F*rV[0]
+                #YDDOT
+                dTMdt[Ind+4] -= masslist[ii]*F*rV[1]
+                #ZDDOT
+                dTMdt[Ind+5] -= masslist[ii]*F*rV[2]
+
+    return dTMdt
