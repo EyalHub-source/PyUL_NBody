@@ -120,7 +120,7 @@ def IOLoad_npy(loc,Type,save_num):
 def IOLoad_h5(loc,Type,save_num):
     flname = f"{loc}/Outputs/{Type}/{IOName(Type)}_#{save_num:03d}.hdf5"
     f = h5py.File(flname,'r')
-    b = f['init'][:]
+    b = f[Type][:]
     f.close()
     return np.array(b)
     
