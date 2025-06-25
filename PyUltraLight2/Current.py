@@ -3742,7 +3742,9 @@ def NBodyEnergy(MassListSI,TMDataSI,EndNum,a=0,length_units = ''): # kg, m, m/s,
         
         rP =  RecPlummer(a,length_units)
 
-        ADim = 1/rP
+        rPSI = convert_between(rP, "length_units", "SI", "l")
+
+        ADim = 1/rPSI # This is now in SI Units. Thanks RB!
     
         printU(f'The Plummer Radius is {rP:.4f}({length_units})', 'NBoE')
     
